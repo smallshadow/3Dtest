@@ -3,81 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 產品展示測試</title>
+    <title>3D 產品展示 - OLIVMEW 動態尺寸</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f4f4f4; }
         .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         
-        /* 3D 視窗大小設定 */
         model-viewer {
-            width: 100%;
-            height: 80%;
+            width: 100%; height: 80%;
             background-color: #ffffff;
             --poster-color: transparent;
         }
 
-        .controls {
-            padding: 20px;
-            text-align: center;
+        /* 標註文字：加上淡入動畫與遮擋隱藏邏輯 */
+        .dim {
+            background: transparent;
+            border: none;
+            color: #444;
+            font-size: 16px;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            font-weight: 300;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-out;
         }
 
-        .ar-button {
-            background-color: #000;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
+        /* 當被模型遮擋時，model-viewer 會移除此屬性或設為隱藏 */
+        .dim:not([data-visible]) {
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
+
+        .dimensionLineContainer {
+            pointer-events: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+
+        .dimensionLine {
+            stroke: #888;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-dasharray: 1000; 
+            stroke-dashoffset: 1000;
+            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1), opacity 0.3s;
+        }
+
+        /* 控制線條在背後時隱藏 */
+        .line-hidden {
+            opacity: 0;
+        }
+
+        .show-dim .dim[data-visible] {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .line-grow {
+            stroke-dashoffset: 0 !important;
+        }
+
+        .controls { padding: 20px; text-align: center; }
+        .dim-button {
+            background-color: #000; color: white; border: none; padding: 10px 20px;
+            border-radius: 0px; cursor: pointer; font-size: 14px; letter-spacing: 1px;
+            transition: background 0.3s;
+        }
+        .dim-button:hover { background-color: #333; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="controls">
+        <button id="toggle-dim" class="dim-button">顯示尺寸標註</button>
+    </div>
     <model-viewer 
         id="product-model"
-        src="OLIVMEW.glb" 
-        ios-src="" 
-        alt="3D 產品模型"
-        shadow-intensity="1.5" 
-        shadow-softness="1"
-        camera-controls 
-        auto-rotate 
-        rotation-per-second="30deg"
+        src="OLIVMEW04.glb" 
+        environment-image="HDR.hdr"
+        style="background-color:#F7F5F4"
+        exposure="0.9"
+        camera-orbit="0deg 75deg 0.25m"
+        field-of-view="30deg"
+        min-camera-orbit="auto auto 0.25m"
+        max-camera-orbit="auto auto 0.25m"
+        camera-controls auto-rotate rotation-per-second="30deg"
         touch-action="pan-y"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        exposure="1.5"
-        environment-image="neutral">
+        ar ar-modes="webxr scene-viewer quick-look"
+        >
         
-        <button slot="ar-button" class="ar-button">
-            在空間中預覽 (AR)
-        </button>
-    </model-viewer>
+        <button slot="hotspot-x-start" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-x-end" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-y-start" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-y-end" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-z-start" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-z-end" style="display:none" data-visibility-attribute="visible"></button>
 
-    <div class="controls">
-        <h2>測試用</h2>
-        <p>3D 互動展示測試樣板。</p>
-    </div>
+        <button id="dim-x" slot="hotspot-dim-x" class="dim" data-visibility-attribute="visible"></button>
+        <button id="dim-y" slot="hotspot-dim-y" class="dim" data-visibility-attribute="visible"></button>
+        <button id="dim-z" slot="hotspot-dim-z" class="dim" data-visibility-attribute="visible"></button>
+
+        <svg id="dimLines" class="dimensionLineContainer">
+            <line id="x-a" class="dimensionLine"></line><line id="x-b" class="dimensionLine"></line>
+            <line id="x-t1" class="dimensionLine"></line><line id="x-t2" class="dimensionLine"></line>
+            <line id="y-a" class="dimensionLine"></line><line id="y-b" class="dimensionLine"></line>
+            <line id="y-t1" class="dimensionLine"></line><line id="y-t2" class="dimensionLine"></line>
+            <line id="z-a" class="dimensionLine"></line><line id="z-b" class="dimensionLine"></line>
+            <line id="z-t1" class="dimensionLine"></line><line id="z-t2" class="dimensionLine"></line>
+        </svg>
+    </model-viewer>
 </div>
 
 <script>
-    // 這裡可以加入互動邏輯，例如點擊按鈕更換顏色
     const modelViewer = document.querySelector("#product-model");
-    
-    // 範例：如果模型加載完成，控制台打印訊息
+    const toggleBtn = document.querySelector("#toggle-dim");
+    const allLines = document.querySelectorAll(".dimensionLine");
+
+    toggleBtn.addEventListener('click', () => {
+        const isShowing = modelViewer.classList.toggle('show-dim');
+        if (isShowing) {
+            toggleBtn.textContent = "隱藏尺寸標註";
+            setTimeout(() => {
+                allLines.forEach(line => line.classList.add('line-grow'));
+            }, 50);
+        } else {
+            toggleBtn.textContent = "顯示尺寸標註";
+            allLines.forEach(line => line.classList.remove('line-grow'));
+        }
+    });
+
+    function drawDimensionAxis(lineA, lineB, tick1, tick2, pStart, pEnd, gap = 25, tickLen = 10) {
+        const h1 = modelViewer.queryHotspot(pStart);
+        const h2 = modelViewer.queryHotspot(pEnd);
+
+        // 檢查端點是否在模型背面 (facingCamera 為 false 表示被遮擋或轉向背面)
+        const isVisible = h1?.facingCamera && h2?.facingCamera;
+        const lineGroup = [lineA, lineB, tick1, tick2];
+
+        if (h1 && h2 && h1.canvasPosition && h2.canvasPosition) {
+            // 同步線條顯隱狀態
+            lineGroup.forEach(l => {
+                if(!isVisible) l.classList.add('line-hidden');
+                else l.classList.remove('line-hidden');
+            });
+
+            const x1 = h1.canvasPosition.x;
+            const y1 = h1.canvasPosition.y;
+            const x2 = h2.canvasPosition.x;
+            const y2 = h2.canvasPosition.y;
+
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+
+            if (len > 0) {
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                const ratio = gap / len;
+
+                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
+                lineA.setAttribute('x2', midX - dx * ratio); lineA.setAttribute('y2', midY - dy * ratio);
+                lineB.setAttribute('x1', midX + dx * ratio); lineB.setAttribute('y1', midY + dy * ratio);
+                lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
+
+                const nx = -dy / len;
+                const ny = dx / len;
+
+                tick1.setAttribute('x1', x1 - nx * tickLen / 2); tick1.setAttribute('y1', y1 - ny * tickLen / 2);
+                tick1.setAttribute('x2', x1 + nx * tickLen / 2); tick1.setAttribute('y2', y1 + ny * tickLen / 2);
+
+                tick2.setAttribute('x1', x2 - nx * tickLen / 2); tick2.setAttribute('y1', y2 - ny * tickLen / 2);
+                tick2.setAttribute('x2', x2 + nx * tickLen / 2); tick2.setAttribute('y2', y2 + ny * tickLen / 2);
+            }
+        }
+    }
+
+    const render = () => {
+        drawDimensionAxis(document.querySelector("#x-a"), document.querySelector("#x-b"), document.querySelector("#x-t1"), document.querySelector("#x-t2"), 'hotspot-x-start', 'hotspot-x-end');
+        drawDimensionAxis(document.querySelector("#y-a"), document.querySelector("#y-b"), document.querySelector("#y-t1"), document.querySelector("#y-t2"), 'hotspot-y-start', 'hotspot-y-end');
+        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end');
+        requestAnimationFrame(render);
+    };
+
     modelViewer.addEventListener('load', () => {
-        console.log("3D 模型已成功加載！");
+        const center = modelViewer.getBoundingBoxCenter();
+        const size = modelViewer.getDimensions();
+        const x2 = size.x / 2;
+        const y2 = size.y / 2;
+        const z2 = size.z / 2;
+        const offset = 0.005; 
+
+        const xS = { x: center.x - x2, y: center.y - y2 - offset, z: center.z + z2 + offset };
+        const xE = { x: center.x + x2, y: center.y - y2 - offset, z: center.z + z2 + offset };
+        const yS = { x: center.x - x2 - offset, y: center.y - y2, z: center.z + z2 + offset };
+        const yE = { x: center.x - x2 - offset, y: center.y + y2, z: center.z + z2 + offset };
+        const zS = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z + z2 };
+        const zE = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z - z2 };
+
+        modelViewer.updateHotspot({ name: 'hotspot-x-start', position: `${xS.x} ${xS.y} ${xS.z}` });
+        modelViewer.updateHotspot({ name: 'hotspot-x-end', position: `${xE.x} ${xE.y} ${xE.z}` });
+        modelViewer.updateHotspot({ name: 'hotspot-y-start', position: `${yS.x} ${yS.y} ${yS.z}` });
+        modelViewer.updateHotspot({ name: 'hotspot-y-end', position: `${yE.x} ${yE.y} ${yE.z}` });
+        modelViewer.updateHotspot({ name: 'hotspot-z-start', position: `${zS.x} ${zS.y} ${zS.z}` });
+        modelViewer.updateHotspot({ name: 'hotspot-z-end', position: `${zE.x} ${zE.y} ${zE.z}` });
+
+        const setLabelMidpoint = (id, manualText, pointA, pointB) => {
+            const el = document.querySelector(id);
+            el.textContent = manualText;
+            modelViewer.updateHotspot({ name: el.slot, position: `${(pointA.x+pointB.x)/2} ${(pointA.y+pointB.y)/2} ${(pointA.z+pointB.z)/2}` });
+        };
+
+        setLabelMidpoint('#dim-x', "1.4cm", xS, xE); 
+        setLabelMidpoint('#dim-y', "1.4cm", yS, yE); 
+        setLabelMidpoint('#dim-z', "0.4cm", zS, zE); 
+
+        requestAnimationFrame(render);
     });
 </script>
 
 </body>
 </html>
-
-
-
-
-
