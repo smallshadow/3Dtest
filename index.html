@@ -18,8 +18,8 @@
 
         .dim {
             background: transparent; border: none; 
-            color: #888; /* 修改：文字顏色改為與線條一致的 #888 */
-            font-size: 18px;
+            color: #888; 
+            font-size: 15px;
             font-family: "Helvetica Neue", Arial, sans-serif; 
             font-weight: bold; 
             position: absolute; transform: translate(-50%, -50%);
@@ -35,7 +35,7 @@
 
         .dimensionLine {
             stroke: #888; 
-            stroke-width: 2.5; 
+            stroke-width: 2; 
             stroke-linecap: round;
             stroke-dasharray: 1000; stroke-dashoffset: 1000;
             transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1);
@@ -110,9 +110,7 @@
         
         if (isShowing) {
             modelViewer.autoRotate = false;
-            // 保持你上次調整的 -145deg 視角
             modelViewer.cameraOrbit = "-145deg 75deg 0.25m";
-            
             setTimeout(() => allLines.forEach(line => line.classList.add('line-grow')), 50);
         } else {
             modelViewer.autoRotate = true;
@@ -131,25 +129,32 @@
         }
     }
 
-    function drawDimensionAxis(lineA, lineB, tick1, tick2, start, end, t1, t2) {
+    function drawDimensionAxis(lineA, lineB, tick1, tick2, start, end, t1, t2, isShortAxis = false) {
         const hS = modelViewer.queryHotspot(start);
         const hE = modelViewer.queryHotspot(end);
         
         if (hS?.canvasPosition && hE?.canvasPosition) {
             const x1 = hS.canvasPosition.x, y1 = hS.canvasPosition.y;
             const x2 = hE.canvasPosition.x, y2 = hE.canvasPosition.y;
-            const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
-            const dx = x2 - x1, dy = y2 - y1;
-            const len = Math.sqrt(dx*dx + dy*dy);
-            
-            const gapPixels = 40; 
-            const gapRatio = gapPixels / len;
 
-            lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
-            lineA.setAttribute('x2', midX - dx * gapRatio); lineA.setAttribute('y2', midY - dy * gapRatio);
-            
-            lineB.setAttribute('x1', midX + dx * gapRatio); lineB.setAttribute('y1', midY + dy * gapRatio);
-            lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
+            if (isShortAxis) {
+                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
+                lineA.setAttribute('x2', x2); lineA.setAttribute('y2', y2);
+                lineB.setAttribute('x1', 0); lineB.setAttribute('y1', 0);
+                lineB.setAttribute('x2', 0); lineB.setAttribute('y2', 0);
+            } else {
+                const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+                const dx = x2 - x1, dy = y2 - y1;
+                const len = Math.sqrt(dx*dx + dy*dy);
+                const gapPixels = 40; 
+                const gapRatio = gapPixels / len;
+
+                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
+                lineA.setAttribute('x2', midX - dx * gapRatio); lineA.setAttribute('y2', midY - dy * gapRatio);
+                
+                lineB.setAttribute('x1', midX + dx * gapRatio); lineB.setAttribute('y1', midY + dy * gapRatio);
+                lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
+            }
         }
 
         drawLineBetweenHotspots(tick1, start, t1);
@@ -159,7 +164,7 @@
     const render = () => {
         drawDimensionAxis(document.querySelector("#x-a"), document.querySelector("#x-b"), document.querySelector("#x-t1"), document.querySelector("#x-t2"), 'hotspot-x-start', 'hotspot-x-end', 'hotspot-x-t1', 'hotspot-x-t2');
         drawDimensionAxis(document.querySelector("#y-a"), document.querySelector("#y-b"), document.querySelector("#y-t1"), document.querySelector("#y-t2"), 'hotspot-y-start', 'hotspot-y-end', 'hotspot-y-t1', 'hotspot-y-t2');
-        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end', 'hotspot-z-t1', 'hotspot-z-t2');
+        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end', 'hotspot-z-t1', 'hotspot-z-t2', true);
         requestAnimationFrame(render);
     };
 
@@ -195,14 +200,26 @@
             modelViewer.updateHotspot({ name, position: `${points[name].x} ${points[name].y} ${points[name].z}` });
         });
 
-        const setLabel = (id, text, pA, pB) => {
+        const setLabel = (id, text, pA, pB, isZAxis = false) => {
             const el = document.querySelector(id);
             el.textContent = text;
-            modelViewer.updateHotspot({ name: el.slot, position: `${(pA.x+pB.x)/2} ${(pA.y+pB.y)/2} ${(pA.z+pB.z)/2}` });
+            
+            let pos;
+            if (isZAxis) {
+                // 修改的核心點：
+                // X 軸：使用 pB.x - 0.009 (往左偏移)
+                // Y 軸：使用 (pA.y + pB.y) / 2 (垂直置中)
+                // Z 軸：使用 (pA.z + pB.z) / 2 (水平置中對齊線段)
+                pos = `${pB.x - 0.007} ${(pA.y + pB.y) / 2} ${(pA.z + pB.z) / 2}`;
+            } else {
+                pos = `${(pA.x+pB.x)/2} ${(pA.y+pB.y)/2} ${(pA.z+pB.z)/2}`;
+            }
+            modelViewer.updateHotspot({ name: el.slot, position: pos });
         };
+        
         setLabel('#dim-x', "1.3cm", xS, xE);
         setLabel('#dim-y', "1.4cm", yS, yE);
-        setLabel('#dim-z', "0.2cm", zS, zE);
+        setLabel('#dim-z', "0.2cm", zS, zE, true);
 
         requestAnimationFrame(render);
     });
