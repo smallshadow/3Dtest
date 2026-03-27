@@ -16,65 +16,39 @@
             --poster-color: transparent;
         }
 
-        /* 標註文字：加上淡入動畫與遮擋隱藏邏輯 */
         .dim {
-            background: transparent;
-            border: none;
-            color: #444;
-            font-size: 16px;
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            font-weight: 300;
-            position: absolute;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease-out;
-        }
-
-        /* 當被模型遮擋時，model-viewer 會移除此屬性或設為隱藏 */
-        .dim:not([data-visible]) {
-            opacity: 0 !important;
-            visibility: hidden !important;
+            background: transparent; border: none; 
+            color: #888; /* 修改：文字顏色改為與線條一致的 #888 */
+            font-size: 18px;
+            font-family: "Helvetica Neue", Arial, sans-serif; 
+            font-weight: bold; 
+            position: absolute; transform: translate(-50%, -50%);
+            pointer-events: none; opacity: 0; visibility: hidden;
+            transition: opacity 0.5s ease-out; transition-delay: 0.4s;
+            display: block !important;
         }
 
         .dimensionLineContainer {
-            pointer-events: none;
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            pointer-events: none; position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
         }
 
         .dimensionLine {
-            stroke: #888;
-            stroke-width: 1.5;
+            stroke: #888; 
+            stroke-width: 2.5; 
             stroke-linecap: round;
-            stroke-dasharray: 1000; 
-            stroke-dashoffset: 1000;
-            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1), opacity 0.3s;
+            stroke-dasharray: 1000; stroke-dashoffset: 1000;
+            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1);
         }
 
-        /* 控制線條在背後時隱藏 */
-        .line-hidden {
-            opacity: 0;
-        }
-
-        .show-dim .dim[data-visible] {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .line-grow {
-            stroke-dashoffset: 0 !important;
-        }
+        .show-dim .dim { opacity: 1; visibility: visible; }
+        .line-grow { stroke-dashoffset: 0 !important; }
 
         .controls { padding: 20px; text-align: center; }
         .dim-button {
             background-color: #000; color: white; border: none; padding: 10px 20px;
-            border-radius: 0px; cursor: pointer; font-size: 14px; letter-spacing: 1px;
-            transition: background 0.3s;
+            cursor: pointer; font-size: 14px; letter-spacing: 1px;
         }
-        .dim-button:hover { background-color: #333; }
     </style>
 </head>
 <body>
@@ -94,20 +68,25 @@
         min-camera-orbit="auto auto 0.25m"
         max-camera-orbit="auto auto 0.25m"
         camera-controls auto-rotate rotation-per-second="30deg"
-        touch-action="pan-y"
-        ar ar-modes="webxr scene-viewer quick-look"
-        >
+        touch-action="pan-y">
         
-        <button slot="hotspot-x-start" style="display:none" data-visibility-attribute="visible"></button>
-        <button slot="hotspot-x-end" style="display:none" data-visibility-attribute="visible"></button>
-        <button slot="hotspot-y-start" style="display:none" data-visibility-attribute="visible"></button>
-        <button slot="hotspot-y-end" style="display:none" data-visibility-attribute="visible"></button>
-        <button slot="hotspot-z-start" style="display:none" data-visibility-attribute="visible"></button>
-        <button slot="hotspot-z-end" style="display:none" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-x-start" style="display:none"></button>
+        <button slot="hotspot-x-end" style="display:none"></button>
+        <button slot="hotspot-y-start" style="display:none"></button>
+        <button slot="hotspot-y-end" style="display:none"></button>
+        <button slot="hotspot-z-start" style="display:none"></button>
+        <button slot="hotspot-z-end" style="display:none"></button>
 
-        <button id="dim-x" slot="hotspot-dim-x" class="dim" data-visibility-attribute="visible"></button>
-        <button id="dim-y" slot="hotspot-dim-y" class="dim" data-visibility-attribute="visible"></button>
-        <button id="dim-z" slot="hotspot-dim-z" class="dim" data-visibility-attribute="visible"></button>
+        <button slot="hotspot-x-t1" style="display:none"></button>
+        <button slot="hotspot-x-t2" style="display:none"></button>
+        <button slot="hotspot-y-t1" style="display:none"></button>
+        <button slot="hotspot-y-t2" style="display:none"></button>
+        <button slot="hotspot-z-t1" style="display:none"></button>
+        <button slot="hotspot-z-t2" style="display:none"></button>
+
+        <button id="dim-x" slot="hotspot-dim-x" class="dim"></button>
+        <button id="dim-y" slot="hotspot-dim-y" class="dim"></button>
+        <button id="dim-z" slot="hotspot-dim-z" class="dim"></button>
 
         <svg id="dimLines" class="dimensionLineContainer">
             <line id="x-a" class="dimensionLine"></line><line id="x-b" class="dimensionLine"></line>
@@ -127,101 +106,103 @@
 
     toggleBtn.addEventListener('click', () => {
         const isShowing = modelViewer.classList.toggle('show-dim');
+        toggleBtn.textContent = isShowing ? "隱藏尺寸標註" : "顯示尺寸標註";
+        
         if (isShowing) {
-            toggleBtn.textContent = "隱藏尺寸標註";
-            setTimeout(() => {
-                allLines.forEach(line => line.classList.add('line-grow'));
-            }, 50);
+            modelViewer.autoRotate = false;
+            // 保持你上次調整的 -145deg 視角
+            modelViewer.cameraOrbit = "-145deg 75deg 0.25m";
+            
+            setTimeout(() => allLines.forEach(line => line.classList.add('line-grow')), 50);
         } else {
-            toggleBtn.textContent = "顯示尺寸標註";
+            modelViewer.autoRotate = true;
             allLines.forEach(line => line.classList.remove('line-grow'));
         }
     });
 
-    function drawDimensionAxis(lineA, lineB, tick1, tick2, pStart, pEnd, gap = 25, tickLen = 10) {
-        const h1 = modelViewer.queryHotspot(pStart);
-        const h2 = modelViewer.queryHotspot(pEnd);
-
-        // 檢查端點是否在模型背面 (facingCamera 為 false 表示被遮擋或轉向背面)
-        const isVisible = h1?.facingCamera && h2?.facingCamera;
-        const lineGroup = [lineA, lineB, tick1, tick2];
-
+    function drawLineBetweenHotspots(line, p1Name, p2Name) {
+        const h1 = modelViewer.queryHotspot(p1Name);
+        const h2 = modelViewer.queryHotspot(p2Name);
         if (h1 && h2 && h1.canvasPosition && h2.canvasPosition) {
-            // 同步線條顯隱狀態
-            lineGroup.forEach(l => {
-                if(!isVisible) l.classList.add('line-hidden');
-                else l.classList.remove('line-hidden');
-            });
-
-            const x1 = h1.canvasPosition.x;
-            const y1 = h1.canvasPosition.y;
-            const x2 = h2.canvasPosition.x;
-            const y2 = h2.canvasPosition.y;
-
-            const dx = x2 - x1;
-            const dy = y2 - y1;
-            const len = Math.sqrt(dx * dx + dy * dy);
-
-            if (len > 0) {
-                const midX = (x1 + x2) / 2;
-                const midY = (y1 + y2) / 2;
-                const ratio = gap / len;
-
-                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
-                lineA.setAttribute('x2', midX - dx * ratio); lineA.setAttribute('y2', midY - dy * ratio);
-                lineB.setAttribute('x1', midX + dx * ratio); lineB.setAttribute('y1', midY + dy * ratio);
-                lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
-
-                const nx = -dy / len;
-                const ny = dx / len;
-
-                tick1.setAttribute('x1', x1 - nx * tickLen / 2); tick1.setAttribute('y1', y1 - ny * tickLen / 2);
-                tick1.setAttribute('x2', x1 + nx * tickLen / 2); tick1.setAttribute('y2', y1 + ny * tickLen / 2);
-
-                tick2.setAttribute('x1', x2 - nx * tickLen / 2); tick2.setAttribute('y1', y2 - ny * tickLen / 2);
-                tick2.setAttribute('x2', x2 + nx * tickLen / 2); tick2.setAttribute('y2', y2 + ny * tickLen / 2);
-            }
+            line.setAttribute('x1', h1.canvasPosition.x);
+            line.setAttribute('y1', h1.canvasPosition.y);
+            line.setAttribute('x2', h2.canvasPosition.x);
+            line.setAttribute('y2', h2.canvasPosition.y);
         }
     }
 
+    function drawDimensionAxis(lineA, lineB, tick1, tick2, start, end, t1, t2) {
+        const hS = modelViewer.queryHotspot(start);
+        const hE = modelViewer.queryHotspot(end);
+        
+        if (hS?.canvasPosition && hE?.canvasPosition) {
+            const x1 = hS.canvasPosition.x, y1 = hS.canvasPosition.y;
+            const x2 = hE.canvasPosition.x, y2 = hE.canvasPosition.y;
+            const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.sqrt(dx*dx + dy*dy);
+            
+            const gapPixels = 40; 
+            const gapRatio = gapPixels / len;
+
+            lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
+            lineA.setAttribute('x2', midX - dx * gapRatio); lineA.setAttribute('y2', midY - dy * gapRatio);
+            
+            lineB.setAttribute('x1', midX + dx * gapRatio); lineB.setAttribute('y1', midY + dy * gapRatio);
+            lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
+        }
+
+        drawLineBetweenHotspots(tick1, start, t1);
+        drawLineBetweenHotspots(tick2, end, t2);
+    }
+
     const render = () => {
-        drawDimensionAxis(document.querySelector("#x-a"), document.querySelector("#x-b"), document.querySelector("#x-t1"), document.querySelector("#x-t2"), 'hotspot-x-start', 'hotspot-x-end');
-        drawDimensionAxis(document.querySelector("#y-a"), document.querySelector("#y-b"), document.querySelector("#y-t1"), document.querySelector("#y-t2"), 'hotspot-y-start', 'hotspot-y-end');
-        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end');
+        drawDimensionAxis(document.querySelector("#x-a"), document.querySelector("#x-b"), document.querySelector("#x-t1"), document.querySelector("#x-t2"), 'hotspot-x-start', 'hotspot-x-end', 'hotspot-x-t1', 'hotspot-x-t2');
+        drawDimensionAxis(document.querySelector("#y-a"), document.querySelector("#y-b"), document.querySelector("#y-t1"), document.querySelector("#y-t2"), 'hotspot-y-start', 'hotspot-y-end', 'hotspot-y-t1', 'hotspot-y-t2');
+        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end', 'hotspot-z-t1', 'hotspot-z-t2');
         requestAnimationFrame(render);
     };
 
     modelViewer.addEventListener('load', () => {
         const center = modelViewer.getBoundingBoxCenter();
         const size = modelViewer.getDimensions();
-        const x2 = size.x / 2;
-        const y2 = size.y / 2;
-        const z2 = size.z / 2;
-        const offset = 0.005; 
+        const x2 = size.x / 2, y2 = size.y / 2, z2 = size.z / 2;
+        
+        const offset = 0.008; 
+        const tickSize = 0.003; 
 
-        const xS = { x: center.x - x2, y: center.y - y2 - offset, z: center.z + z2 + offset };
-        const xE = { x: center.x + x2, y: center.y - y2 - offset, z: center.z + z2 + offset };
+        const xS = { x: center.x - x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
+        const xE = { x: center.x + x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
+        const xT1 = { x: xS.x, y: xS.y, z: xS.z + tickSize };
+        const xT2 = { x: xE.x, y: xE.y, z: xE.z + tickSize };
+
         const yS = { x: center.x - x2 - offset, y: center.y - y2, z: center.z + z2 + offset };
         const yE = { x: center.x - x2 - offset, y: center.y + y2, z: center.z + z2 + offset };
+        const yT1 = { x: yS.x + tickSize, y: yS.y, z: yS.z };
+        const yT2 = { x: yE.x + tickSize, y: yE.y, z: yE.z };
+
         const zS = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z + z2 };
         const zE = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z - z2 };
+        const zT1 = { x: zS.x + tickSize, y: zS.y, z: zS.z };
+        const zT2 = { x: zE.x + tickSize, y: zE.y, z: zE.z };
 
-        modelViewer.updateHotspot({ name: 'hotspot-x-start', position: `${xS.x} ${xS.y} ${xS.z}` });
-        modelViewer.updateHotspot({ name: 'hotspot-x-end', position: `${xE.x} ${xE.y} ${xE.z}` });
-        modelViewer.updateHotspot({ name: 'hotspot-y-start', position: `${yS.x} ${yS.y} ${yS.z}` });
-        modelViewer.updateHotspot({ name: 'hotspot-y-end', position: `${yE.x} ${yE.y} ${yE.z}` });
-        modelViewer.updateHotspot({ name: 'hotspot-z-start', position: `${zS.x} ${zS.y} ${zS.z}` });
-        modelViewer.updateHotspot({ name: 'hotspot-z-end', position: `${zE.x} ${zE.y} ${zE.z}` });
-
-        const setLabelMidpoint = (id, manualText, pointA, pointB) => {
-            const el = document.querySelector(id);
-            el.textContent = manualText;
-            modelViewer.updateHotspot({ name: el.slot, position: `${(pointA.x+pointB.x)/2} ${(pointA.y+pointB.y)/2} ${(pointA.z+pointB.z)/2}` });
+        const points = {
+            'hotspot-x-start': xS, 'hotspot-x-end': xE, 'hotspot-x-t1': xT1, 'hotspot-x-t2': xT2,
+            'hotspot-y-start': yS, 'hotspot-y-end': yE, 'hotspot-y-t1': yT1, 'hotspot-y-t2': yT2,
+            'hotspot-z-start': zS, 'hotspot-z-end': zE, 'hotspot-z-t1': zT1, 'hotspot-z-t2': zT2
         };
+        Object.keys(points).forEach(name => {
+            modelViewer.updateHotspot({ name, position: `${points[name].x} ${points[name].y} ${points[name].z}` });
+        });
 
-        setLabelMidpoint('#dim-x', "1.4cm", xS, xE); 
-        setLabelMidpoint('#dim-y', "1.4cm", yS, yE); 
-        setLabelMidpoint('#dim-z', "0.4cm", zS, zE); 
+        const setLabel = (id, text, pA, pB) => {
+            const el = document.querySelector(id);
+            el.textContent = text;
+            modelViewer.updateHotspot({ name: el.slot, position: `${(pA.x+pB.x)/2} ${(pA.y+pB.y)/2} ${(pA.z+pB.z)/2}` });
+        };
+        setLabel('#dim-x', "1.3cm", xS, xE);
+        setLabel('#dim-y', "1.4cm", yS, yE);
+        setLabel('#dim-z', "0.2cm", zS, zE);
 
         requestAnimationFrame(render);
     });
