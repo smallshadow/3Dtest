@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 產品展示 - OLIVMEW 精準標註</title>
+    <title>3D 產品展示 - OLIVMEW 固定標註</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     
     <style>
@@ -41,7 +41,7 @@
             transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1);
         }
 
-        /* 顯示標註時的樣式 */
+        /* 顯示狀態控制 */
         .show-dim .dim { opacity: 1; visibility: visible; }
         .show-dim .dimensionLine { stroke-dashoffset: 0; }
 
@@ -51,7 +51,6 @@
             cursor: pointer; font-size: 14px; letter-spacing: 1px;
             transition: background-color 0.3s;
         }
-        .dim-button:hover { background-color: #333; }
     </style>
 </head>
 <body>
@@ -67,7 +66,7 @@
         environment-image="HDR.hdr"
         style="background-color:#F7F5F4"
         exposure="0.9"
-        camera-orbit="-145deg 75deg 0.25m"
+        camera-orbit="-145deg 75deg 0.25m" 
         field-of-view="30deg"
         min-camera-orbit="auto auto 0.25m"
         max-camera-orbit="auto auto 0.25m"
@@ -106,12 +105,17 @@
     const modelViewer = document.querySelector("#product-model");
     const toggleBtn = document.querySelector("#toggle-dim");
 
-    // 單純的切換邏輯
     toggleBtn.addEventListener('click', () => {
         const isShowing = modelViewer.classList.toggle('show-dim');
         toggleBtn.textContent = isShowing ? "隱藏尺寸標註" : "顯示尺寸標註";
+        
+        if (isShowing) {
+            // 放回來了！點擊時強制轉向設定好的完美角度
+            modelViewer.cameraOrbit = "-145deg 75deg 0.25m";
+        }
     });
 
+    // 繪圖渲染邏輯 (保持不變)
     function drawLineBetweenHotspots(line, p1Name, p2Name) {
         const h1 = modelViewer.queryHotspot(p1Name);
         const h2 = modelViewer.queryHotspot(p2Name);
@@ -126,11 +130,9 @@
     function drawDimensionAxis(lineA, lineB, tick1, tick2, start, end, t1, t2, isShortAxis = false) {
         const hS = modelViewer.queryHotspot(start);
         const hE = modelViewer.queryHotspot(end);
-        
         if (hS?.canvasPosition && hE?.canvasPosition) {
             const x1 = hS.canvasPosition.x, y1 = hS.canvasPosition.y;
             const x2 = hE.canvasPosition.x, y2 = hE.canvasPosition.y;
-
             if (isShortAxis) {
                 lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
                 lineA.setAttribute('x2', x2); lineA.setAttribute('y2', y2);
@@ -140,9 +142,7 @@
                 const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
                 const dx = x2 - x1, dy = y2 - y1;
                 const len = Math.sqrt(dx*dx + dy*dy);
-                const gapPixels = 40; 
-                const gapRatio = gapPixels / len;
-
+                const gapRatio = 40 / len;
                 lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
                 lineA.setAttribute('x2', midX - dx * gapRatio); lineA.setAttribute('y2', midY - dy * gapRatio);
                 lineB.setAttribute('x1', midX + dx * gapRatio); lineB.setAttribute('y1', midY + dy * gapRatio);
@@ -164,11 +164,8 @@
         const center = modelViewer.getBoundingBoxCenter();
         const size = modelViewer.getDimensions();
         const x2 = size.x / 2, y2 = size.y / 2, z2 = size.z / 2;
-        
-        const offset = 0.008; 
-        const tickSize = 0.003; 
+        const offset = 0.008, tickSize = 0.003; 
 
-        // 座標點位計算保持你的精確設定
         const xS = { x: center.x - x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
         const xE = { x: center.x + x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
         const xT1 = { x: xS.x, y: xS.y, z: xS.z + tickSize };
