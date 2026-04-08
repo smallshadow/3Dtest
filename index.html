@@ -3,17 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 產品展示 - OLIVMEW 固定標註</title>
+    <title>3D 產品展示 - OLIVMEW 自然遮擋修正</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f4f4f4; }
-        .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh;
+            position: relative;
+        }
         
         model-viewer {
             width: 100%; height: 80%;
-            background-color: #ffffff;
+            background-color: transparent;
             --poster-color: transparent;
+            position: relative;
+            z-index: 2; 
+            pointer-events: auto;
+        }
+
+        .bottom-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; 
+            pointer-events: none;
         }
 
         .dim {
@@ -23,11 +41,13 @@
             font-family: "Helvetica Neue", Arial, sans-serif; 
             font-weight: bold; 
             position: absolute; transform: translate(-50%, -50%);
-            pointer-events: none; opacity: 0; visibility: hidden;
-            transition: opacity 0.5s ease-out;
-            display: block !important;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.4s ease-out;
         }
 
+        .show-dim .dim.visible { opacity: 1; visibility: visible; }
+        .show-dim .dimensionLine { stroke-dashoffset: 0; }
+        
         .dimensionLineContainer {
             pointer-events: none; position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -38,14 +58,15 @@
             stroke-width: 2; 
             stroke-linecap: round;
             stroke-dasharray: 1000; stroke-dashoffset: 1000;
-            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1);
+            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1), opacity 0.3s;
         }
 
-        /* 顯示狀態控制 */
-        .show-dim .dim { opacity: 1; visibility: visible; }
-        .show-dim .dimensionLine { stroke-dashoffset: 0; }
-
-        .controls { padding: 20px; text-align: center; }
+        .controls { 
+            padding: 20px; 
+            text-align: center;
+            position: relative;
+            z-index: 100;
+        }
         .dim-button {
             background-color: #000; color: white; border: none; padding: 10px 20px;
             cursor: pointer; font-size: 14px; letter-spacing: 1px;
@@ -64,7 +85,7 @@
         id="product-model"
         src="OLIVMEW04.glb" 
         environment-image="HDR.hdr"
-        style="background-color:#F7F5F4"
+        style="background-color: transparent;"
         exposure="0.9"
         camera-orbit="-145deg 75deg 0.25m" 
         field-of-view="30deg"
@@ -73,49 +94,52 @@
         camera-controls
         touch-action="pan-y">
         
-        <button slot="hotspot-x-start" style="display:none"></button>
-        <button slot="hotspot-x-end" style="display:none"></button>
-        <button slot="hotspot-y-start" style="display:none"></button>
-        <button slot="hotspot-y-end" style="display:none"></button>
-        <button slot="hotspot-z-start" style="display:none"></button>
-        <button slot="hotspot-z-end" style="display:none"></button>
-        <button slot="hotspot-x-t1" style="display:none"></button>
-        <button slot="hotspot-x-t2" style="display:none"></button>
-        <button slot="hotspot-y-t1" style="display:none"></button>
-        <button slot="hotspot-y-t2" style="display:none"></button>
-        <button slot="hotspot-z-t1" style="display:none"></button>
-        <button slot="hotspot-z-t2" style="display:none"></button>
+        <div slot="hotspot-y-start"></div>
+        <div slot="hotspot-y-end"></div>
+        <div slot="hotspot-z-start"></div>
+        <div slot="hotspot-z-end"></div>
+        <div slot="hotspot-y-t1"></div>
+        <div slot="hotspot-y-t2"></div>
+        <div slot="hotspot-z-t1"></div>
+        <div slot="hotspot-z-t2"></div>
+        <div slot="hotspot-dim-y"></div>
+        <div slot="hotspot-dim-z"></div>
+    </model-viewer>
 
-        <button id="dim-x" slot="hotspot-dim-x" class="dim"></button>
-        <button id="dim-y" slot="hotspot-dim-y" class="dim"></button>
-        <button id="dim-z" slot="hotspot-dim-z" class="dim"></button>
+    <div class="bottom-layer" id="ui-layer">
+        <div id="dim-y" class="dim visible">14mm</div>
+        <div id="dim-z" class="dim visible">2mm</div>
 
         <svg id="dimLines" class="dimensionLineContainer">
-            <line id="x-a" class="dimensionLine"></line><line id="x-b" class="dimensionLine"></line>
-            <line id="x-t1" class="dimensionLine"></line><line id="x-t2" class="dimensionLine"></line>
-            <line id="y-a" class="dimensionLine"></line><line id="y-b" class="dimensionLine"></line>
-            <line id="y-t1" class="dimensionLine"></line><line id="y-t2" class="dimensionLine"></line>
-            <line id="z-a" class="dimensionLine"></line><line id="z-b" class="dimensionLine"></line>
-            <line id="z-t1" class="dimensionLine"></line><line id="z-t2" class="dimensionLine"></line>
+            <line id="y-a" class="dimensionLine"></line>
+            <line id="y-t1" class="dimensionLine"></line>
+            <line id="y-t2" class="dimensionLine"></line>
+            <line id="z-a" class="dimensionLine"></line>
+            <line id="z-t1" class="dimensionLine"></line>
+            <line id="z-t2" class="dimensionLine"></line>
         </svg>
-    </model-viewer>
+    </div>
 </div>
 
 <script>
     const modelViewer = document.querySelector("#product-model");
     const toggleBtn = document.querySelector("#toggle-dim");
+    const uiLayer = document.querySelector("#ui-layer");
 
     toggleBtn.addEventListener('click', () => {
-        const isShowing = modelViewer.classList.toggle('show-dim');
+        const isShowing = uiLayer.classList.toggle('show-dim');
         toggleBtn.textContent = isShowing ? "隱藏尺寸標註" : "顯示尺寸標註";
-        
-        if (isShowing) {
-            // 放回來了！點擊時強制轉向設定好的完美角度
-            modelViewer.cameraOrbit = "-145deg 75deg 0.25m";
-        }
+        if (isShowing) { modelViewer.cameraOrbit = "-145deg 75deg 0.25m"; }
     });
 
-    // 繪圖渲染邏輯 (保持不變)
+    function updateElementPosition(el, hotspotName) {
+        const hotspot = modelViewer.queryHotspot(hotspotName);
+        if (hotspot && hotspot.canvasPosition) {
+            el.style.left = `${hotspot.canvasPosition.x}px`;
+            el.style.top = `${hotspot.canvasPosition.y}px`;
+        }
+    }
+
     function drawLineBetweenHotspots(line, p1Name, p2Name) {
         const h1 = modelViewer.queryHotspot(p1Name);
         const h2 = modelViewer.queryHotspot(p2Name);
@@ -127,77 +151,71 @@
         }
     }
 
-    function drawDimensionAxis(lineA, lineB, tick1, tick2, start, end, t1, t2, isShortAxis = false) {
-        const hS = modelViewer.queryHotspot(start);
-        const hE = modelViewer.queryHotspot(end);
-        if (hS?.canvasPosition && hE?.canvasPosition) {
-            const x1 = hS.canvasPosition.x, y1 = hS.canvasPosition.y;
-            const x2 = hE.canvasPosition.x, y2 = hE.canvasPosition.y;
-            if (isShortAxis) {
-                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
-                lineA.setAttribute('x2', x2); lineA.setAttribute('y2', y2);
-                lineB.setAttribute('x1', 0); lineB.setAttribute('y1', 0);
-                lineB.setAttribute('x2', 0); lineB.setAttribute('y2', 0);
-            } else {
-                const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
-                const dx = x2 - x1, dy = y2 - y1;
-                const len = Math.sqrt(dx*dx + dy*dy);
-                const gapRatio = 40 / len;
-                lineA.setAttribute('x1', x1); lineA.setAttribute('y1', y1);
-                lineA.setAttribute('x2', midX - dx * gapRatio); lineA.setAttribute('y2', midY - dy * gapRatio);
-                lineB.setAttribute('x1', midX + dx * gapRatio); lineB.setAttribute('y1', midY + dy * gapRatio);
-                lineB.setAttribute('x2', x2); lineB.setAttribute('y2', y2);
-            }
-        }
-        drawLineBetweenHotspots(tick1, start, t1);
-        drawLineBetweenHotspots(tick2, end, t2);
-    }
-
     const render = () => {
-        drawDimensionAxis(document.querySelector("#x-a"), document.querySelector("#x-b"), document.querySelector("#x-t1"), document.querySelector("#x-t2"), 'hotspot-x-start', 'hotspot-x-end', 'hotspot-x-t1', 'hotspot-x-t2');
-        drawDimensionAxis(document.querySelector("#y-a"), document.querySelector("#y-b"), document.querySelector("#y-t1"), document.querySelector("#y-t2"), 'hotspot-y-start', 'hotspot-y-end', 'hotspot-y-t1', 'hotspot-y-t2');
-        drawDimensionAxis(document.querySelector("#z-a"), document.querySelector("#z-b"), document.querySelector("#z-t1"), document.querySelector("#z-t2"), 'hotspot-z-start', 'hotspot-z-end', 'hotspot-z-t1', 'hotspot-z-t2', true);
+        updateElementPosition(document.querySelector("#dim-y"), 'hotspot-dim-y');
+        updateElementPosition(document.querySelector("#dim-z"), 'hotspot-dim-z');
+        drawLineBetweenHotspots(document.querySelector("#y-a"), 'hotspot-y-start', 'hotspot-y-end');
+        drawLineBetweenHotspots(document.querySelector("#y-t1"), 'hotspot-y-start', 'hotspot-y-t1');
+        drawLineBetweenHotspots(document.querySelector("#y-t2"), 'hotspot-y-end', 'hotspot-y-t2');
+        drawLineBetweenHotspots(document.querySelector("#z-a"), 'hotspot-z-start', 'hotspot-z-end');
+        drawLineBetweenHotspots(document.querySelector("#z-t1"), 'hotspot-z-start', 'hotspot-z-t1');
+        drawLineBetweenHotspots(document.querySelector("#z-t2"), 'hotspot-z-end', 'hotspot-z-t2');
         requestAnimationFrame(render);
     };
 
     modelViewer.addEventListener('load', () => {
         const center = modelViewer.getBoundingBoxCenter();
         const size = modelViewer.getDimensions();
-        const x2 = size.x / 2, y2 = size.y / 2, z2 = size.z / 2;
-        const offset = 0.008, tickSize = 0.003; 
+        const offset = 0.008; 
+        const tickSize = 0.003; 
+        
+        // --- 1. 調整整體標註下移量 ---
+        const verticalAdjustment = 0.022; 
 
-        const xS = { x: center.x - x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
-        const xE = { x: center.x + x2, y: center.y - y2 - offset, z: center.z - z2 - offset };
-        const xT1 = { x: xS.x, y: xS.y, z: xS.z + tickSize };
-        const xT2 = { x: xE.x, y: xE.y, z: xE.z + tickSize };
-        const yS = { x: center.x - x2 - offset, y: center.y - y2, z: center.z + z2 + offset };
-        const yE = { x: center.x - x2 - offset, y: center.y + y2, z: center.z + z2 + offset };
-        const yT1 = { x: yS.x + tickSize, y: yS.y, z: yS.z };
-        const yT2 = { x: yE.x + tickSize, y: yE.y, z: yE.z };
-        const zS = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z + z2 };
-        const zE = { x: center.x - x2 - offset, y: center.y - y2 - offset, z: center.z - z2 };
-        const zT1 = { x: zS.x + tickSize, y: zS.y, z: zS.z };
-        const zT2 = { x: zE.x + tickSize, y: zE.y, z: zE.z };
+        // --- 2. 調整文字與線段的間距 (單位：米) ---
+        // yLabelXOffset: Y 軸文字往左推開的距離
+        const yLabelXOffset = -0.012; 
+        // zLabelXOffset: Z 軸文字往左推開的距離 (讓它不與 Z 軸線重疊)
+        const zLabelXOffset = -0.012; 
+
+        // Y 軸標註點位計算
+        const yBaseY = center.y - size.y/2 - verticalAdjustment;
+        const yS = { x: center.x - size.x/2 - offset, y: yBaseY, z: center.z + size.z/2 + offset };
+        const yE = { x: center.x - size.x/2 - offset, y: yBaseY + size.y, z: center.z + size.z/2 + offset };
+
+        // Z 軸標註點位計算
+        const zBaseY = center.y - size.y/2 - offset - verticalAdjustment;
+        const zS = { x: center.x - size.x/2 - offset, y: zBaseY, z: center.z + size.z/2 };
+        const zE = { x: center.x - size.x/2 - offset, y: zBaseY, z: center.z - size.z/2 };
 
         const points = {
-            'hotspot-x-start': xS, 'hotspot-x-end': xE, 'hotspot-x-t1': xT1, 'hotspot-x-t2': xT2,
-            'hotspot-y-start': yS, 'hotspot-y-end': yE, 'hotspot-y-t1': yT1, 'hotspot-y-t2': yT2,
-            'hotspot-z-start': zS, 'hotspot-z-end': zE, 'hotspot-z-t1': zT1, 'hotspot-z-t2': zT2
+            'hotspot-y-start': yS, 
+            'hotspot-y-end': yE, 
+            'hotspot-y-t1': { ...yS, x: yS.x + tickSize }, 
+            'hotspot-y-t2': { ...yE, x: yE.x + tickSize },
+            'hotspot-z-start': zS, 
+            'hotspot-z-end': zE, 
+            'hotspot-z-t1': { ...zS, x: zS.x + tickSize }, 
+            'hotspot-z-t2': { ...zE, x: zE.x + tickSize }
         };
+        
         Object.keys(points).forEach(name => {
             modelViewer.updateHotspot({ name, position: `${points[name].x} ${points[name].y} ${points[name].z}` });
         });
 
-        const setLabel = (id, text, pA, pB, isZAxis = false) => {
-            const el = document.querySelector(id);
-            el.textContent = text;
-            const pos = isZAxis ? `${pB.x - 0.007} ${(pA.y + pB.y) / 2} ${(pA.z + pB.z) / 2}` : `${(pA.x+pB.x)/2} ${(pA.y+pB.y)/2} ${(pA.z+pB.z)/2}`;
-            modelViewer.updateHotspot({ name: el.slot, position: pos });
-        };
+        // --- 設定文字標籤位置中心點 (現在都採用 X 軸水平位移) ---
         
-        setLabel('#dim-x', "1.3cm", xS, xE);
-        setLabel('#dim-y', "1.4cm", yS, yE);
-        setLabel('#dim-z', "0.2cm", zS, zE, true);
+        // Y 軸標註文字
+        modelViewer.updateHotspot({ 
+            name: 'hotspot-dim-y', 
+            position: `${yS.x + yLabelXOffset} ${yBaseY + size.y/2} ${yS.z}` 
+        });
+        
+        // Z 軸標註文字 (Y 座標恢復平行，X 座標往左移)
+        modelViewer.updateHotspot({ 
+            name: 'hotspot-dim-z', 
+            position: `${zS.x + zLabelXOffset} ${zBaseY} ${center.z}` 
+        });
 
         requestAnimationFrame(render);
     });
