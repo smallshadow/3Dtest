@@ -3,223 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 產品展示 - OLIVMEW 自然遮擋修正</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
-    
+    <title>3D 標註展示 - 精緻優化版</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background-color: #f4f4f4; }
-        .container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh;
-            position: relative;
-        }
+        body { margin: 0; background-color: #ffffff; overflow: hidden; font-family: sans-serif; }
+        canvas { display: block; }
         
-        model-viewer {
-            width: 100%; height: 80%;
-            background-color: transparent;
-            --poster-color: transparent;
-            position: relative;
-            z-index: 2; 
-            pointer-events: auto;
-        }
-
-        .bottom-layer {
+        /* 按鈕樣式 */
+        #ui-container {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1; 
-            pointer-events: none;
-        }
-
-        .dim {
-            background: transparent; border: none; 
-            color: #888; 
-            font-size: 15px;
-            font-family: "Helvetica Neue", Arial, sans-serif; 
-            font-weight: 500; 
-            position: absolute; transform: translate(-50%, -50%);
-            opacity: 0; visibility: hidden;
-            transition: opacity 0.4s ease-out;
-        }
-
-        .show-dim .dim.visible { opacity: 1; visibility: visible; }
-        .show-dim .dimensionLine { stroke-dashoffset: 0; }
-        
-        .dimensionLineContainer {
-            pointer-events: none; position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-        }
-
-        .dimensionLine {
-            stroke: #888; 
-            stroke-width: 2; 
-            stroke-linecap: round;
-            stroke-dasharray: 1000; stroke-dashoffset: 1000;
-            transition: stroke-dashoffset 0.8s cubic-bezier(1, 0, 0.2, 1), opacity 0.3s;
-        }
-
-        .controls { 
-            padding: 20px; 
-            text-align: center;
-            position: relative;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 100;
         }
-        .dim-button {
-            background-color: #000; color: white; border: none; padding: 10px 20px;
-            cursor: pointer; font-size: 14px; letter-spacing: 1px;
-            transition: background-color 0.3s;
+        #toggleButton {
+            padding: 10px 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #999;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+        #toggleButton:hover {
+            background-color: #333;
+            color: #fff;
+        }
+
+        /* 手部提示樣式 */
+        #hand-hint {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 90;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .hand-icon-img {
+            width: 30px;
+            animation: handMoveHint 2.5s infinite ease-in-out;
+        }
+
+        @keyframes handMoveHint {
+            0%, 100% { transform: translateX(-30px); }
+            50% { transform: translateX(30px); }
+        }
+
+        #loader {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666; font-size: 14px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="controls">
-        <button id="toggle-dim" class="dim-button">顯示尺寸標註</button>
-    </div>
+    <div id="loader">正在加載模型與 3D 尺標...</div>
     
-    <model-viewer 
-        id="product-model"
-        src="OLIVMEW04.glb" 
-        environment-image="HDR.hdr"
-        style="background-color: transparent;"
-        exposure="0.9"
-        camera-orbit="-145deg 75deg 0.25m" 
-        field-of-view="30deg"
-        min-camera-orbit="auto auto 0.25m"
-        max-camera-orbit="auto auto 0.25m"
-        camera-controls
-        touch-action="pan-y">
-        
-        <div slot="hotspot-y-start"></div>
-        <div slot="hotspot-y-end"></div>
-        <div slot="hotspot-z-start"></div>
-        <div slot="hotspot-z-end"></div>
-        <div slot="hotspot-y-t1"></div>
-        <div slot="hotspot-y-t2"></div>
-        <div slot="hotspot-z-t1"></div>
-        <div slot="hotspot-z-t2"></div>
-        <div slot="hotspot-dim-y"></div>
-        <div slot="hotspot-dim-z"></div>
-    </model-viewer>
-
-    <div class="bottom-layer" id="ui-layer">
-        <div id="dim-y" class="dim visible">14mm</div>
-        <div id="dim-z" class="dim visible">2mm</div>
-
-        <svg id="dimLines" class="dimensionLineContainer">
-            <line id="y-a" class="dimensionLine"></line>
-            <line id="y-t1" class="dimensionLine"></line>
-            <line id="y-t2" class="dimensionLine"></line>
-            <line id="z-a" class="dimensionLine"></line>
-            <line id="z-t1" class="dimensionLine"></line>
-            <line id="z-t2" class="dimensionLine"></line>
-        </svg>
+    <div id="hand-hint">
+        <img src="hand.png" alt="滑動提示" class="hand-icon-img">
     </div>
-</div>
 
-<script>
-    const modelViewer = document.querySelector("#product-model");
-    const toggleBtn = document.querySelector("#toggle-dim");
-    const uiLayer = document.querySelector("#ui-layer");
+    <div id="ui-container">
+        <button id="toggleButton">顯示尺寸標註</button>
+    </div>
 
-    toggleBtn.addEventListener('click', () => {
-        const isShowing = uiLayer.classList.toggle('show-dim');
-        toggleBtn.textContent = isShowing ? "隱藏尺寸標註" : "顯示尺寸標註";
-        if (isShowing) { modelViewer.cameraOrbit = "-145deg 75deg 0.25m"; }
-    });
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
-    function updateElementPosition(el, hotspotName) {
-        const hotspot = modelViewer.queryHotspot(hotspotName);
-        if (hotspot && hotspot.canvasPosition) {
-            el.style.left = `${hotspot.canvasPosition.x}px`;
-            el.style.top = `${hotspot.canvasPosition.y}px`;
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
         }
-    }
+    </script>
 
-    function drawLineBetweenHotspots(line, p1Name, p2Name) {
-        const h1 = modelViewer.queryHotspot(p1Name);
-        const h2 = modelViewer.queryHotspot(p2Name);
-        if (h1 && h2 && h1.canvasPosition && h2.canvasPosition) {
-            line.setAttribute('x1', h1.canvasPosition.x);
-            line.setAttribute('y1', h1.canvasPosition.y);
-            line.setAttribute('x2', h2.canvasPosition.x);
-            line.setAttribute('y2', h2.canvasPosition.y);
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+        import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+        import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+
+        let scene, camera, renderer, controls, font;
+        let dimensionsGroup; 
+        let currentModel = null; 
+        let isUserInteracting = false; 
+        let dimensionTimeline = null; 
+
+        init();
+
+        function init() {
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
+            camera.position.set(0.3, 0.09, 0.3); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const handHint = document.getElementById('hand-hint');
+            const onUserInteraction = () => {
+                if (isUserInteracting) return;
+                isUserInteracting = true; 
+                handHint.style.opacity = '0';
+                setTimeout(() => { if(handHint) handHint.remove(); }, 500);
+                controls.removeEventListener('start', onUserInteraction);
+            };
+            controls.addEventListener('start', onUserInteraction);
+
+            dimensionsGroup = new THREE.Group();
+            dimensionsGroup.visible = false; 
+            scene.add(dimensionsGroup);
+
+            const fontLoader = new FontLoader();
+            fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (loadedFont) {
+                font = loadedFont;
+                loadEnvironment();
+            });
+
+            const btn = document.getElementById('toggleButton');
+            btn.addEventListener('click', () => {
+                if (!dimensionTimeline) return;
+
+                if (dimensionTimeline.reversed() || dimensionTimeline.paused()) {
+                    // --- 回到初始視角邏輯 ---
+                    resetCameraView();
+                    
+                    dimensionsGroup.visible = true;
+                    dimensionTimeline.play();
+                    btn.textContent = "隱藏尺寸標註";
+                } else {
+                    dimensionTimeline.reverse();
+                    btn.textContent = "顯示尺寸標註";
+                }
+                onUserInteraction(); 
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
         }
-    }
 
-    const render = () => {
-        updateElementPosition(document.querySelector("#dim-y"), 'hotspot-dim-y');
-        updateElementPosition(document.querySelector("#dim-z"), 'hotspot-dim-z');
-        drawLineBetweenHotspots(document.querySelector("#y-a"), 'hotspot-y-start', 'hotspot-y-end');
-        drawLineBetweenHotspots(document.querySelector("#y-t1"), 'hotspot-y-start', 'hotspot-y-t1');
-        drawLineBetweenHotspots(document.querySelector("#y-t2"), 'hotspot-y-end', 'hotspot-y-t2');
-        drawLineBetweenHotspots(document.querySelector("#z-a"), 'hotspot-z-start', 'hotspot-z-end');
-        drawLineBetweenHotspots(document.querySelector("#z-t1"), 'hotspot-z-start', 'hotspot-z-t1');
-        drawLineBetweenHotspots(document.querySelector("#z-t2"), 'hotspot-z-end', 'hotspot-z-t2');
-        requestAnimationFrame(render);
-    };
+        // 建立一個平滑回正視角的函式
+        function resetCameraView() {
+            // 1. 重置模型旋轉
+            if (currentModel) {
+                gsap.to(currentModel.rotation, { y: 0, duration: 0.8, ease: "power2.inOut" });
+            }
+            
+            // 2. 重置相機位置 (回到初始設定的 0.3, 0.09, 0.3)
+            gsap.to(camera.position, {
+                x: 0.3, y: 0.09, z: 0.3,
+                duration: 0.8,
+                ease: "power2.inOut"
+            });
 
-    modelViewer.addEventListener('load', () => {
-        const center = modelViewer.getBoundingBoxCenter();
-        const size = modelViewer.getDimensions();
-        const offset = 0.008; 
-        const tickSize = 0.003; 
-        
-        // --- 1. 調整整體標註下移量 ---
-        const verticalAdjustment = 0.022; 
+            // 3. 重置控制器目標點
+            gsap.to(controls.target, {
+                x: 0, y: 0, z: 0,
+                duration: 0.8,
+                ease: "power2.inOut",
+                onUpdate: () => controls.update()
+            });
+        }
 
-        // --- 2. 調整文字與線段的間距 (單位：米) ---
-        // yLabelXOffset: Y 軸文字往左推開的距離
-        const yLabelXOffset = -0.012; 
-        // zLabelXOffset: Z 軸文字往左推開的距離 (讓它不與 Z 軸線重疊)
-        const zLabelXOffset = -0.012; 
+        function loadEnvironment() {
+            new RGBELoader().load('HDR.hdr', (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.environment = texture; 
+                loadModel();
+            }, undefined, () => {
+                scene.add(new THREE.AmbientLight(0xffffff, 2));
+                loadModel();
+            });
+        }
 
-        // Y 軸標註點位計算
-        const yBaseY = center.y - size.y/2 - verticalAdjustment;
-        const yS = { x: center.x - size.x/2 - offset, y: yBaseY, z: center.z + size.z/2 + offset };
-        const yE = { x: center.x - size.x/2 - offset, y: yBaseY + size.y, z: center.z + size.z/2 + offset };
+        function createFlatText(text, x, y, z) {
+            if (!font) return null;
+            const textGeo = new TextGeometry(text, {
+                font: font,
+                size: 0.005,        
+                height: 0.0001,     
+                curveSegments: 4,
+                bevelEnabled: false
+            });
+            textGeo.computeBoundingBox();
+            const centerOffset = -0.5 * (textGeo.boundingBox.max.x - textGeo.boundingBox.min.x);
+            textGeo.translate(centerOffset, 0, 0);
 
-        // Z 軸標註點位計算
-        const zBaseY = center.y - size.y/2 - offset - verticalAdjustment;
-        const zS = { x: center.x - size.x/2 - offset, y: zBaseY, z: center.z + size.z/2 };
-        const zE = { x: center.x - size.x/2 - offset, y: zBaseY, z: center.z - size.z/2 };
+            const textMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x999999, 
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0 
+            });
+            const textMesh = new THREE.Mesh(textGeo, textMaterial);
+            textMesh.position.set(x, y, z);
+            
+            textMesh.onBeforeRender = function( renderer, scene, camera ) {
+                this.quaternion.copy( camera.quaternion );
+            };
 
-        const points = {
-            'hotspot-y-start': yS, 
-            'hotspot-y-end': yE, 
-            'hotspot-y-t1': { ...yS, x: yS.x + tickSize }, 
-            'hotspot-y-t2': { ...yE, x: yE.x + tickSize },
-            'hotspot-z-start': zS, 
-            'hotspot-z-end': zE, 
-            'hotspot-z-t1': { ...zS, x: zS.x + tickSize }, 
-            'hotspot-z-t2': { ...zE, x: zE.x + tickSize }
-        };
-        
-        Object.keys(points).forEach(name => {
-            modelViewer.updateHotspot({ name, position: `${points[name].x} ${points[name].y} ${points[name].z}` });
-        });
+            return textMesh;
+        }
 
-        // --- 設定文字標籤位置中心點 (現在都採用 X 軸水平位移) ---
-        
-        // Y 軸標註文字
-        modelViewer.updateHotspot({ 
-            name: 'hotspot-dim-y', 
-            position: `${yS.x + yLabelXOffset} ${yBaseY + size.y/2} ${yS.z}` 
-        });
-        
-        // Z 軸標註文字 (Y 座標恢復平行，X 座標往左移)
-        modelViewer.updateHotspot({ 
-            name: 'hotspot-dim-z', 
-            position: `${zS.x + zLabelXOffset} ${zBaseY} ${center.z}` 
-        });
+        function createThickLine(start, end, thickness) {
+            const distance = start.distanceTo(end);
+            const geometry = new THREE.CylinderGeometry(thickness, thickness, distance, 6);
+            geometry.translate(0, distance / 2, 0);
 
-        requestAnimationFrame(render);
-    });
-</script>
+            const material = new THREE.MeshBasicMaterial({ color: 0x999999 });
+            const cylinder = new THREE.Mesh(geometry, material);
 
+            cylinder.position.copy(start);
+            cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
+            cylinder.scale.y = 0;
+            
+            return cylinder;
+        }
+
+        function createDimensionGroup(points, thickness) {
+            const group = new THREE.Group();
+            for (let i = 0; i < points.length - 1; i++) {
+                group.add(createThickLine(points[i], points[i+1], thickness));
+            }
+            return group;
+        }
+
+        function setupDimensionTimeline() {
+            dimensionTimeline = gsap.timeline({ 
+                paused: true, 
+                reversed: true,
+                onReverseComplete: () => { dimensionsGroup.visible = false; } 
+            });
+
+            dimensionsGroup.children.forEach(child => {
+                if (child instanceof THREE.Group) {
+                    dimensionTimeline.to(child.children.map(line => line.scale), {
+                        y: 1,
+                        duration: 0.3,
+                        stagger: 0.05,
+                        ease: "power2.inOut"
+                    });
+                } else if (child instanceof THREE.Mesh) {
+                    dimensionTimeline.to(child.material, {
+                        opacity: 1,
+                        duration: 0.3
+                    }, "-=0.15");
+                }
+            });
+        }
+
+        function loadModel() {
+            const loader = new GLTFLoader();
+            loader.load('OLIVMEW05.glb', function (gltf) {
+                currentModel = gltf.scene; 
+                const box = new THREE.Box3().setFromObject(currentModel);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                currentModel.position.sub(center); 
+                scene.add(currentModel);
+
+                document.getElementById('hand-hint').style.opacity = '0.8';
+
+                const margin = 0.01;           
+                const lineExtension = 0.001;    
+                const textOffset = 0.015;      
+                const zOffsetDown = 0.015;     
+                const yAxisZShift = -0.02;     
+                const lineThickness = 0.00025; 
+
+                const yPoints = [
+                    new THREE.Vector3(size.x/2 + lineExtension, size.y/2, yAxisZShift),
+                    new THREE.Vector3(size.x/2 + margin, size.y/2, yAxisZShift),
+                    new THREE.Vector3(size.x/2 + margin, -size.y/2, yAxisZShift),
+                    new THREE.Vector3(size.x/2 + lineExtension, -size.y/2, yAxisZShift)
+                ];
+                dimensionsGroup.add(createDimensionGroup(yPoints, lineThickness));
+
+                const hVal = (size.y * 100).toFixed(0) + " mm";
+                const hLabel = createFlatText(hVal, size.x/2 + margin + textOffset, 0, yAxisZShift);
+                dimensionsGroup.add(hLabel);
+
+                const zPoints = [
+                    new THREE.Vector3(size.x/2 + lineExtension, -size.y/2 - zOffsetDown, size.z/2),
+                    new THREE.Vector3(size.x/2 + margin, -size.y/2 - zOffsetDown, size.z/2),
+                    new THREE.Vector3(size.x/2 + margin, -size.y/2 - zOffsetDown, -size.z/2),
+                    new THREE.Vector3(size.x/2 + lineExtension, -size.y/2 - zOffsetDown, -size.z/2)
+                ];
+                dimensionsGroup.add(createDimensionGroup(zPoints, lineThickness));
+
+                const dVal = (size.z * 100).toFixed(0) + " mm";
+                const dLabel = createFlatText(dVal, size.x/2 + margin + textOffset, -size.y/2 - zOffsetDown, 0);
+                dimensionsGroup.add(dLabel);
+
+                setupDimensionTimeline();
+
+                controls.target.set(0, 0, 0);
+                document.getElementById('loader').style.display = 'none';
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // 只有在使用者沒有互動時才執行自動晃動
+            if (currentModel && !isUserInteracting) {
+                const time = Date.now() * 0.001; 
+                const shakeAmplitude = 0.05; 
+                const shakeSpeed = 2.5; 
+                currentModel.rotation.y = Math.sin(time * shakeSpeed) * shakeAmplitude;
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
 </body>
 </html>
