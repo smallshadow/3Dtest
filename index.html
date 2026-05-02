@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 標註展示 - 精緻優化版</title>
+    <title>3D 產品展示 OLIVMEW</title>
     <style>
         body { margin: 0; background-color: #ffffff; overflow: hidden; font-family: sans-serif; }
         canvas { display: block; }
         
-        /* 按鈕樣式 */
         #ui-container {
             position: absolute;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
+            display: flex;
+            gap: 10px;
         }
-        #toggleButton {
+        #toggleButton, #playButton {
             padding: 10px 20px;
             background-color: rgba(255, 255, 255, 0.8);
             border: 1px solid #999;
@@ -26,13 +27,13 @@
             letter-spacing: 1px;
             transition: all 0.3s;
             border-radius: 2px;
+            white-space: nowrap;
         }
-        #toggleButton:hover {
+        #toggleButton:hover, #playButton:hover {
             background-color: #333;
             color: #fff;
         }
 
-        /* 手部提示樣式 */
         #hand-hint {
             position: absolute;
             top: 50%; 
@@ -62,7 +63,7 @@
 </head>
 <body>
 
-    <div id="loader">正在加載模型與 3D 尺標...</div>
+    <div id="loader">正在載入模型...</div>
     
     <div id="hand-hint">
         <img src="hand.png" alt="滑動提示" class="hand-icon-img">
@@ -70,6 +71,7 @@
 
     <div id="ui-container">
         <button id="toggleButton">顯示尺寸標註</button>
+        <button id="playButton">播放展示動畫</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -97,6 +99,11 @@
         let isUserInteracting = false; 
         let dimensionTimeline = null; 
 
+        let mixer = null;
+        let clock = new THREE.Clock();
+        let animationClips = [];
+        let isAnimating = false; 
+
         init();
 
         function init() {
@@ -109,6 +116,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.6; // 稍微提高曝光增加亮度
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             document.body.appendChild(renderer.domElement);
 
@@ -136,13 +144,26 @@
             });
 
             const btn = document.getElementById('toggleButton');
+            const playBtn = document.getElementById('playButton');
+
             btn.addEventListener('click', () => {
                 if (!dimensionTimeline) return;
+                onUserInteraction(); 
 
                 if (dimensionTimeline.reversed() || dimensionTimeline.paused()) {
-                    // --- 回到初始視角邏輯 ---
+                    if (isAnimating) {
+                        isAnimating = false;
+                        playBtn.textContent = "播放展示動畫";
+                        animationClips.forEach(clip => {
+                            const action = mixer.clipAction(clip);
+                            action.paused = false;
+                            action.timeScale = -1; 
+                            action.setLoop(THREE.LoopOnce);
+                            action.clampWhenFinished = true;
+                            action.play();
+                        });
+                    }
                     resetCameraView();
-                    
                     dimensionsGroup.visible = true;
                     dimensionTimeline.play();
                     btn.textContent = "隱藏尺寸標註";
@@ -150,33 +171,66 @@
                     dimensionTimeline.reverse();
                     btn.textContent = "顯示尺寸標註";
                 }
-                onUserInteraction(); 
+            });
+
+            playBtn.addEventListener('click', () => {
+                onUserInteraction();
+
+                if (dimensionTimeline && !dimensionTimeline.reversed()) {
+                    dimensionTimeline.reverse();
+                    btn.textContent = "顯示尺寸標註";
+                }
+
+                if (!mixer || animationClips.length === 0) return;
+
+                if (!isAnimating) {
+                    isAnimating = true;
+                    playBtn.textContent = "關閉展示動畫";
+                    resetCameraView(() => {
+                        animationClips.forEach(clip => {
+                            const action = mixer.clipAction(clip);
+                            action.paused = false;
+                            action.setLoop(THREE.LoopOnce);
+                            action.clampWhenFinished = true;
+                            action.timeScale = 1; 
+                            action.play();
+                        });
+                    });
+                } else {
+                    isAnimating = false;
+                    playBtn.textContent = "播放展示動畫";
+                    animationClips.forEach(clip => {
+                        const action = mixer.clipAction(clip);
+                        action.paused = false;
+                        action.timeScale = -1; 
+                        action.setLoop(THREE.LoopOnce);
+                        action.clampWhenFinished = true;
+                        action.play();
+                    });
+                }
             });
 
             window.addEventListener('resize', onWindowResize);
             animate();
         }
 
-        // 建立一個平滑回正視角的函式
-        function resetCameraView() {
-            // 1. 重置模型旋轉
+        function resetCameraView(callback) {
             if (currentModel) {
                 gsap.to(currentModel.rotation, { y: 0, duration: 0.8, ease: "power2.inOut" });
             }
-            
-            // 2. 重置相機位置 (回到初始設定的 0.3, 0.09, 0.3)
             gsap.to(camera.position, {
                 x: 0.3, y: 0.09, z: 0.3,
                 duration: 0.8,
                 ease: "power2.inOut"
             });
-
-            // 3. 重置控制器目標點
             gsap.to(controls.target, {
                 x: 0, y: 0, z: 0,
                 duration: 0.8,
                 ease: "power2.inOut",
-                onUpdate: () => controls.update()
+                onUpdate: () => controls.update(),
+                onComplete: () => {
+                    if (callback) callback();
+                }
             });
         }
 
@@ -184,9 +238,25 @@
             new RGBELoader().load('HDR.hdr', (texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 scene.environment = texture; 
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 降低環境光比例，讓反射更明顯
+                scene.add(ambientLight);
+
+                // 添加主點光源模擬金屬高光
+                const light1 = new THREE.PointLight(0xffffff, 2);
+                light1.position.set(0.5, 0.5, 0.5);
+                scene.add(light1);
+
+                const light2 = new THREE.PointLight(0xffffff, 1.5);
+                light2.position.set(-0.5, 0.2, -0.5);
+                scene.add(light2);
+
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+                scene.add(hemiLight);
+
                 loadModel();
             }, undefined, () => {
-                scene.add(new THREE.AmbientLight(0xffffff, 2));
+                scene.add(new THREE.AmbientLight(0xffffff, 1));
                 loadModel();
             });
         }
@@ -224,14 +294,11 @@
             const distance = start.distanceTo(end);
             const geometry = new THREE.CylinderGeometry(thickness, thickness, distance, 6);
             geometry.translate(0, distance / 2, 0);
-
             const material = new THREE.MeshBasicMaterial({ color: 0x999999 });
             const cylinder = new THREE.Mesh(geometry, material);
-
             cylinder.position.copy(start);
             cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
             cylinder.scale.y = 0;
-            
             return cylinder;
         }
 
@@ -269,8 +336,32 @@
 
         function loadModel() {
             const loader = new GLTFLoader();
-            loader.load('OLIVMEW05.glb', function (gltf) {
+            loader.load('bd03.glb', function (gltf) {
                 currentModel = gltf.scene; 
+                
+                currentModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        if (child.material) {
+                            if (child.material.aoMap) {
+                            child.material.aoMapIntensity = 0.6; // 讓陰影淺一點，不要全黑
+                            }
+                            // 金屬感核心參數改動
+                            child.material.metalness = 1.0;          // 完全金屬
+                            child.material.roughness = 0.15;         // 降低粗糙度，反射更銳利
+                            child.material.envMapIntensity = 2.1;    // 增強對環境(HDR)的反射強度
+                            child.material.emissive = new THREE.Color(0x000000); // 移除發光，改由反射表現質感
+                            child.material.needsUpdate = true;
+                        }
+                    }
+                });
+
+                if (gltf.animations && gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(currentModel);
+                    animationClips = gltf.animations;
+                }
+
                 const box = new THREE.Box3().setFromObject(currentModel);
                 const size = box.getSize(new THREE.Vector3());
                 const center = box.getCenter(new THREE.Vector3());
@@ -279,12 +370,7 @@
 
                 document.getElementById('hand-hint').style.opacity = '0.8';
 
-                const margin = 0.01;           
-                const lineExtension = 0.001;    
-                const textOffset = 0.015;      
-                const zOffsetDown = 0.015;     
-                const yAxisZShift = -0.02;     
-                const lineThickness = 0.00025; 
+                const margin = 0.01, lineExtension = 0.001, textOffset = 0.015, zOffsetDown = 0.015, yAxisZShift = -0.02, lineThickness = 0.00025; 
 
                 const yPoints = [
                     new THREE.Vector3(size.x/2 + lineExtension, size.y/2, yAxisZShift),
@@ -325,16 +411,15 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
             controls.update();
-
-            // 只有在使用者沒有互動時才執行自動晃動
             if (currentModel && !isUserInteracting) {
                 const time = Date.now() * 0.001; 
                 const shakeAmplitude = 0.05; 
                 const shakeSpeed = 2.5; 
                 currentModel.rotation.y = Math.sin(time * shakeSpeed) * shakeAmplitude;
             }
-
             renderer.render(scene, camera);
         }
     </script>
