@@ -17,7 +17,8 @@
             display: flex;
             gap: 10px;
         }
-        #toggleButton, #playButton {
+        /* 將 pauseButton 加入共用樣式中 */
+        #toggleButton, #playButton, #pauseButton {
             padding: 10px 20px;
             background-color: rgba(255, 255, 255, 0.8);
             border: 1px solid #999;
@@ -29,7 +30,7 @@
             border-radius: 2px;
             white-space: nowrap;
         }
-        #toggleButton:hover, #playButton:hover {
+        #toggleButton:hover, #playButton:hover, #pauseButton:hover {
             background-color: #333;
             color: #fff;
         }
@@ -72,6 +73,8 @@
     <div id="ui-container">
         <button id="toggleButton">顯示尺寸標註</button>
         <button id="playButton">播放展示動畫</button>
+        <!-- 新增暫停按鈕，預設隱藏 -->
+        <button id="pauseButton" style="display: none;">暫停動畫</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -103,6 +106,7 @@
         let clock = new THREE.Clock();
         let animationClips = [];
         let isAnimating = false; 
+        let isPaused = false; // 新增：用來記錄是否正在暫停中
 
         init();
 
@@ -145,6 +149,20 @@
 
             const btn = document.getElementById('toggleButton');
             const playBtn = document.getElementById('playButton');
+            const pauseBtn = document.getElementById('pauseButton'); // 取得暫停按鈕
+
+            // 暫停按鈕點擊事件
+            pauseBtn.addEventListener('click', () => {
+                if (!mixer || animationClips.length === 0 || !isAnimating) return;
+                
+                isPaused = !isPaused;
+                pauseBtn.textContent = isPaused ? "繼續播放" : "暫停動畫";
+                
+                animationClips.forEach(clip => {
+                    const action = mixer.clipAction(clip);
+                    action.paused = isPaused; // 根據狀態凍結或恢復動作
+                });
+            });
 
             btn.addEventListener('click', () => {
                 if (!dimensionTimeline) return;
@@ -154,6 +172,12 @@
                     if (isAnimating) {
                         isAnimating = false;
                         playBtn.textContent = "播放展示動畫";
+                        
+                        // 若此時正在展示動畫，切換顯示尺寸會關閉動畫，將暫停狀態一起重置並隱藏
+                        isPaused = false;
+                        pauseBtn.textContent = "暫停動畫";
+                        pauseBtn.style.display = "none";
+
                         animationClips.forEach(clip => {
                             const action = mixer.clipAction(clip);
                             action.paused = false;
@@ -186,6 +210,8 @@
                 if (!isAnimating) {
                     isAnimating = true;
                     playBtn.textContent = "關閉展示動畫";
+                    pauseBtn.style.display = "block"; // 開始播放時顯示暫停按鈕
+                    
                     resetCameraView(() => {
                         animationClips.forEach(clip => {
                             const action = mixer.clipAction(clip);
@@ -199,6 +225,12 @@
                 } else {
                     isAnimating = false;
                     playBtn.textContent = "播放展示動畫";
+                    
+                    // 關閉展示動畫時，隱藏暫停按鈕並重置狀態
+                    isPaused = false;
+                    pauseBtn.textContent = "暫停動畫";
+                    pauseBtn.style.display = "none";
+
                     animationClips.forEach(clip => {
                         const action = mixer.clipAction(clip);
                         action.paused = false;
@@ -392,7 +424,7 @@
                 ];
                 dimensionsGroup.add(createDimensionGroup(zPoints, lineThickness));
 
-                const dVal = (size.z * 100).toFixed(0) + " mm";
+                const dVal = (size.z * 100).toFixed(0) + " 2mm";
                 const dLabel = createFlatText(dVal, size.x/2 + margin + textOffset, -size.y/2 - zOffsetDown, 0);
                 dimensionsGroup.add(dLabel);
 
